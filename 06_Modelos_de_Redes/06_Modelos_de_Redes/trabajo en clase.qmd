@@ -1,0 +1,98 @@
+---
+title: "Trabajo en clase"
+author: "Santiago Dalia , Carmona Valeria"
+format: html
+editor: visual
+---
+1. cargar librerias
+```{r}
+library(pacman)
+p_load(igraph,ggraph, tidyverse, ggrepel, tidygraph, networkD3)
+```
+2.Nombrar al archivo 
+
+```{r}
+datos<- read.csv("Lista_nodos_Macro2.csv")
+```
+```{r}
+red <- as_tbl_graph(datos, directed = TRUE)
+```
+
+3.Se calcula la centralidad
+```{r}
+centralidad <- data.frame(
+  Nodo = V(red)$name,
+  Grado = degree(red),
+ #Intermediación, Betweenness
+  Betweenness = round(betweenness(red, normalized = TRUE), 3),
+  Closeness = round(closeness(red, normalized = TRUE), 3))
+```
+
+4.Creamos la tabla
+```{r}
+centralidad <- data.frame(
+  Nodo = V(red)$name,
+  Grado = degree(red),
+  Grado_norm = round(degree(red, normalized = TRUE), 3),
+  Betweenness = round(betweenness(red, normalized = TRUE), 3),
+  Closeness = round(closeness(red, normalized = TRUE), 3)
+)
+print(centralidad)
+```
+5. Detectar el algoritmo de Louvain
+```{r}
+comunidades <- cluster_louvain(as.undirected(as.igraph(red)))
+
+red <- red %>%
+  activate(nodes) %>%
+  mutate(comunidad = as.factor(membership(comunidades)))
+
+table(V(red)$comunidad)
+```
+6.Se grafica 
+```{r}
+ggraph(red, layout = "fr") + 
+  geom_edge_link(alpha = 0.2, color = "deeppink") + 
+  geom_node_point(aes(color = comunidad, size = degree(red))) +
+  geom_node_text(aes(label = name), repel = TRUE, size = 3) +
+  scale_color_brewer(palette = "Set2") + 
+  theme_graph() +
+  labs(title = "Visualización de la Red Macro2",
+       subtitle = "Nodos coloreados por comunidad y tamaño por grado",
+       color = "Comunidad",
+       size = "Conexiones")
+```
+7.Identificar lo importante con Betweenness
+```{r}
+top_betweenness <- centralidad %>%
+arrange(desc(Betweenness)) %>%
+head(5)
+print("Top 5 especies más importantes")
+top_betweenness 
+```
+```{r}
+densidad_red <- edge_density(red)
+print(paste("La densidad de la red es:", round(densidad_red, 4)))
+```
+8. Visualización interactiva
+```{r}
+red_igraph <- as.igraph(red)
+
+d3_net <- igraph_to_networkD3(red_igraph, group = V(red_igraph)$comunidad)
+
+forceNetwork(Links = d3_net$links, 
+             Nodes = d3_net$nodes, 
+             Source = "source", 
+             Target = "target", 
+             NodeID = "name", 
+             Group = "group",
+             opacity = 0.9, 
+             zoom = TRUE, 
+             fontSize = 12)
+```
+
+La estabilidad del ecosistema no está determinada únicamente por la cantidad de especies presentes, sino por la forma en que se relacionan entre ellas. A partir del análisis, se identifica que la estructura de la red depende en gran medida de unos pocos nodos con valores elevados de betweenness, los cuales actúan como enlaces esenciales entre distintos grupos. Estos organismos cumplen una función crítica al mantener conectadas comunidades que, sin ellos, permanecerían aisladas.
+
+Cuando estas especies clave presentan baja resiliencia o crecimiento limitado, el ecosistema se vuelve más susceptible a perturbaciones. Su posible desaparición implicaría una fragmentación de la red, afectando procesos fundamentales como el flujo de energía y nutrientes.
+
+Por otro lado, mediante el algoritmo de Louvain se observa que las especies tienden a organizarse en comunidades bien definidas, donde predominan las interacciones internas. La baja densidad de la red indica que las relaciones entre especies son selectivas y no generalizadas. En conjunto, estos hallazgos sugieren que la conservación del ecosistema no debe centrarse únicamente en las especies más abundantes, sino en aquellas que desempeñan un papel estructural clave, ya que son las responsables de mantener la cohesión y funcionalidad del sistema.
