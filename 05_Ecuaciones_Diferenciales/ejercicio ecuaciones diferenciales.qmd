@@ -1,0 +1,120 @@
+---
+title: "EJERCICIO Modelado de Impacto Ambiental en el "Río Esmeralda""
+author: "Santiago Dalia"
+format: html
+editor: visual
+---
+
+1.  Cargar los paquetes que vamo a utilizar
+
+```{r}
+install.packages("deSolve")
+library(deSolve)
+library(ggplot2)
+```
+
+2.Definir el modelo Presas (x): Macroinvertebrados acuáticos. Depredadores (y): Peces locales.
+
+```{r}
+modelo_rio <- function(t, state, parameters) {
+  with(as.list(c(state, parameters)), {
+
+    dx <- r * x * (1 - x / K) - a * x * y
+
+    dy <- e * a * x * y - m * y
+    
+    return(list(c(dx, dy)))
+  })
+}
+```
+
+3.  establecer parametros y condiciones r tasa de crecimiento a tasa de ataque k tasa de carga e eficiencia, conversion m tasa de mortalidad
+
+```{r}
+params <- c(r = 1.5, K = 100, a = 0.1, e = 0.2, m = 0.4)
+estado_inicial <- c(x = 50, y = 20)
+tiempo <- seq(0, 150, by = 0.1)
+```
+
+4.  resolucion
+
+```{r}
+out <- as.data.frame(ode(y = estado_inicial, times = tiempo,func = modelo_rio, parms = params))
+```
+
+5.  visualizacion
+
+```{r}
+ggplot(out, aes(x = time)) +
+geom_line(aes(y = x, color = "Macroinvertebrados acuáticos (Presa)"), size = 1) +
+geom_line(aes(y = y, color = "Peces locales (Depredador)"), size = 1) +
+labs(title = "Dinámica Estabilizada: Presa-Depredador",
+x = "Días", y = "Biomasa", color = "Especie") +
+theme_minimal()
+```
+
+calculos e interpretacion
+
+```{r}
+# ¿Cuál fue la población máxima de la presa?
+max_presa <- max(out$x)
+max_presa
+#¿Cuál fue la población máxima de Depredadores?
+max_depredador <- max(out$y)
+max_depredador
+#El pico nos dice cuánta carga de depredadores aguanta el sistema antes de que se acaben la comida.
+# ¿En qué momento (tiempo) ocurrió el pico de depredadores?
+tiempo_pico <- out$time[which.max(out$y)]
+tiempo_pico
+```
+
+simulacion, Ahora vamos a crear un impacto en el rio por verter agua a alta temperatura. 1. PARÁMETROS Y CONDICIONES
+
+```{r}
+params_impacto = c(r = 0.6, K = 100, a = 0.04, e = 0.2, m = 0.5)
+estado_inicial = c(x = 50, y = 20)
+tiempo = seq(0, 150, by = 0.1)
+```
+
+2.  correr la resolucion 2
+
+```{r}
+out_impacto <- as.data.frame(ode(y = estado_inicial, times = tiempo,func = modelo_rio, parms = params_impacto))
+```
+
+3.  visualizacion, grafiquemos ambos escenarios, comparativa
+
+```{r}
+# Graficamos primero el Sano (Líneas continuas)
+plot(out$time, out$x, type="l", col="forestgreen", lwd=2,
+ylim=c(0, 80), main="Comparativa de Salud del Ecosistema",
+xlab="Días", ylab="Biomasa (Individuos)")
+lines(out$time, out$y, col="firebrick", lwd=2)
+# Añadimos el Impactado (Líneas punteadas lty=2)
+lines(out_impacto$time, out_impacto$x, col="forestgreen", lwd=2, lty=2)
+lines(out_impacto$time, out_impacto$y, col="firebrick", lwd=2, lty=2)
+# Leyendas
+legend("topright",
+legend=c("Macroinvertebrados acuáticos (Sano)", "Peces locales (Sano)", "Macroinvertebrados acuáticos (Impacto)", "Peces locales (Impacto)"),
+col=c("forestgreen", "firebrick", "forestgreen", "firebrick"),
+lty=c(1, 1, 2, 2), lwd=2, cex=0.8)
+```
+
+interpretacion
+
+```{r}
+# Usamos los últimos 30 días para evitar el "caos" del inicio
+prom_sano <- mean(out$y[out$time > 70])
+prom_imp <- mean(out_impacto$y[out_impacto$time > 70])
+# 2. Fórmula de Cambio Porcentual
+perdida_porcentual <- ((prom_sano - prom_imp) / prom_sano) * 100
+# 3. Resultado final en consola
+cat("--------------------------------------------\n",
+"ANÁLISIS DE IMPACTO EN EL DEPREDADOR:\n",
+"Biomasa Promedio (Sano): ", round(prom_sano, 1), "\n",
+"Biomasa Promedio (Impacto): ", round(prom_imp, 1), "\n",
+"PÉRDIDA TOTAL DE BIOMASA: ", round(perdida_porcentual, 1), "%\n",
+"--------------------------------------------\n")
+```
+
+preguntas: 1. Expliquen la relación de la población de presas con la tasa de ataque (a). Es una relacion inversamente proporcional ya que cuando la tasa de ataque es mayor (caza) la pobracion de presas disminuye, mientras que cuando la tasa de ataque disminuye observamos que la poblacion de presas aumenta. 2. Si la pérdida de biomasa es superior al 80%, se considera una "extinción funcional". Según sus resultados, ¿el río Esmeralda ha sufrido una extinción funcional? no, ya que la perdida total de biomasa es de un 53.1%
