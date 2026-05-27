@@ -1,0 +1,117 @@
+---
+title: "Regresion logistica multinomial"
+author: "Dalia Santiago"
+format: html
+editor: visual
+---
+
+1.  iNSTALAR PAQUETES
+
+```{r}
+install.packages("pacman")
+library(pacman)
+p_load(tidyberse, ggplot2, nnet, broom, knitr, kableExtra, gtsummary, ggeffects, marginaleffects, car)
+```
+
+2.Llamar al entorno nuestro dataset
+
+```{r}
+df_Mar<-read.csv("M.A.R_Cleaned.csv")
+```
+
+3.  Cambiar de categorico a factores nuestras variables
+
+```{r}
+
+  df_MAR <- df_Mar %>%
+    mutate(
+    culgrieve = factor(culgrieve, 
+                       labels = c("No Grievances Expressed",
+                                  "Ending Discrimination",
+                                  "Creating/Strengthening Remedial Policies")),
+    legisrep = factor(legisrep, 
+                      labels = c("No", "Yes")),
+    execrep = factor(execrep, 
+                      labels = c("No", "Yes")),
+    grplang = factor(grplang, 
+                     labels = c("<10% Speak Native Lang",
+                                "Some Speak Native Lang",
+                                "Most Speak Native Lang")),
+    trsntlkin = factor(trsntlkin, 
+                       labels = c("No Close Kindred",
+                                  "Close Kindred/Not Adjoining Base",
+                                  "Close Kindred, Adjoining Base",
+                                  "Close Kindred, More than 1 Country")),
+  )
+```
+
+Vamos a comparar la categotia 0 con la categoria 1 de la variable cualgrive
+
+```{r}
+ggplot(df_Mar %>% filter(culgrieve == "No Grievances Expressed" | 
+                           culgrieve == "Ending Discrimination"),
+       aes(x = as.numeric(grplang), y = as.numeric(culgrieve))) +
+  geom_point() +
+  geom_smooth(method = "loess", se = FALSE) +
+  theme_classic()
+```
+
+Comparamos la categoria de 0 No quejas con la categoria 2 Crear políticos
+
+```{r}
+ggplot(df_MAR %>% filter(culgrieve == "No Grievances Expressed" | 
+                        culgrieve == "Creating/Strengthening Remedial Policies"),
+       aes(x = as.numeric(grplang), y = as.numeric(culgrieve))) +
+  geom_point() +
+  geom_smooth(method = "loess", se = FALSE) +
+  theme_classic()
+```
+
+#el 2 tiene valores mas homogenios
+
+```{r}
+fit_basic <- multinom(culgrieve ~ grplang, data = df_MAR)
+```
+
+veamos los resultaodpos
+
+```{r}
+summary(fit_basic)
+```
+
+# coeficiente 0.94 entre error estandar 0.2108233
+
+```{r}
+tidy(fit_basic, conf.int = TRUE)
+```
+
+ahora veremos como se ve la tabla con kable
+
+```{r}
+tidy(fit_full, conf.int = TRUE) %>% 
+  kable() %>% 
+  kable_styling("basic", full_width = FALSE)
+```
+
+agregamosmas variables al modelo
+
+```{r}
+fit_full <- multinom(culgrive ~ grplang + trsntlkin + ledisrep + exacrep +
+                       pct_ctry, data = df_MAR)
+```
+
+prosiguiendo en lo dos tres trucos
+
+```{r}
+tidy(fit_full , conf.int = TRUE) %>%
+  kable() %>%
+  kable_styling("basic", full_width = FALSE)
+```
+
+Calcular los odd
+
+```{r}
+tbl_regression(fit_full, exp = TRUE)
+
+
+```
