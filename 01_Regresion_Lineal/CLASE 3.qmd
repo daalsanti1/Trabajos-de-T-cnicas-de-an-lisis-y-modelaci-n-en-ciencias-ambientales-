@@ -1,0 +1,45 @@
+---
+title: "EJERCICIO 2: MODELO DE REGRESION LINEAL"
+author: "Dalia Santiago"
+format: html
+editor: visual
+---
+
+leer el archivo
+
+```{r}
+fires<- read.csv("forestfires.csv")
+```
+
+Ex visual
+
+```{r}
+ggplot(fires,aes(x=area)) + geom_histogram (bins = 40, fill= "firebrick", color= "White") + labs(title= "Distribución del área quemada", x="Área (ha)", y= "Frecuencia")+ theme_minimal()
+```
+
+Variabale dset de log
+
+```{r}
+fires$log_area<-log(fires $area+1)
+```
+
+graf de datos
+
+```{r}
+ggplot(fires,aes(x=log_area)) +
+         geom_histogram(bins=30,fill="steelblue",color="white")+
+         labs(title="log(area+1)",x="log(Área)",
+              y="Frecuencia"+theme_minimal())
+```
+
+modelo simple
+
+```{r}
+modelo_simple <- lm (log_area~temp,data=fires)
+```
+
+Resultados
+
+```{r}
+summary(modelo_simple)
+```

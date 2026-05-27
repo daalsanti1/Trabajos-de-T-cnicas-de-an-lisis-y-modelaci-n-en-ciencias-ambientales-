@@ -1,0 +1,67 @@
+---
+title: "CLASE 2: MODELO DE RGRESION LINEAL"
+author: "Dalia Santiago"
+format: pdf
+editor: visual
+---
+
+Vamos a generar numeros aleatorios y con la funcion set.seed vamos a controlar que sean los mismos cada vez que abramos los documentos
+
+```{r}
+set.seed(123)
+x = rnorm(100)
+e = rnorm(100,mean = 0, sd = 1)
+y <- 2 + 1.5*x + e
+plot(x, y)
+
+```
+
+notas: de que se trata el chunk? generamos una base de datos
+
+```{r}
+datos= data.frame(x,y)
+reg.simple = lm(formula = y ~ x, data = datos)
+summary(reg.simple)
+```
+
+interpretacion del modelo... el modelo represnta un 60% de la realidad p value es muy pequeño
+
+Instalar el paquete y luego llamarlo al entorno
+
+```{r}
+install.packages("palmerpenguins")
+library(palmerpenguins)
+```
+
+vamos a trabajar con una base de datos del paquete, veamos la estructura de las variables
+
+```{r}
+str(penguins)
+```
+
+```{r}
+#Hagamos una muestra en la que solo seleccionemos los pinguinos Adelaida
+Ad <- subset(penguins, species == "Adelie")
+pairs(Ad[, 3:6], pch = 19, col = "blue", lower.panel = NULL)
+```
+
+y si fueran todos los pinguinos ¿Cómo se vería?
+
+```{r}
+pairs(penguins[, 3:6], pch = 19, col = c("red", "orange", "blue")[penguins$species], lower.panel = NULL)
+```
+
+Especificamente en los pingüinos Adelaida como son las correlaciones?
+
+```{r}
+install.packages("psych")
+library(psych)
+pairs.panels(Ad[, 3:6],
+
+method = "pearson", # correlación
+density = FALSE, # gráficos de densidad
+ellipses = FALSE, # elipses de confianza
+lm = TRUE) # recta
+```
+
+Notas: no pude instalar la libreria pero los graficos representan una grafica de correlacion, aunque esta correlacion es muy baja PORQUE NO ES CERCANA A 1
