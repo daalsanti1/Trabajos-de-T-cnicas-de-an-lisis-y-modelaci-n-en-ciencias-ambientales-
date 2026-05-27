@@ -1,0 +1,84 @@
+---
+title: "ejercicio 2 poisson"
+author: "Santiago Dalia"
+format: html
+editor: visual
+---
+
+1.cargar los paquetes
+
+```{r}
+library(tidyverse)
+install.packages("sp")
+library(sp)
+install.packages("rworldmap")
+library(rworldmap)
+```
+
+2.llamar al entorno el archivo que vamos a trabajar
+
+```{r}
+fires <- read_csv("SUOMI_VIIRS_C2_Central_America_7d.csv")
+```
+
+3.  filtrar datos
+
+```{r}
+fires<-fires%>%
+filter(confidence %in% c("nominal", "high")) %>%
+mutate(acq_date = as.Date(acq_date))
+```
+
+4.  Asignar pais a cada punto de fuego identificado
+
+```{r}
+coords <- fires %>% select(longitude, latitude)
+puntos <- SpatialPoints(coords,
+
+proj4string = CRS("+proj=longlat +datum=WGS84"))
+
+mapa_mundo <- getMap(resolution = "low")
+pais_asignado <- over(puntos, mapa_mundo)
+fires$pais <- pais_asignado$ADMIN
+```
+
+4.1 cargamos de nuevo el dataset con la variable de paises
+
+```{r}
+fires=read.csv("fires2.csv")
+```
+
+5.  Vamos a crear nuevas variables y agrupar los datos que tenemos por pais y fecha
+
+```{r}
+conteo <- fires %>%
+group_by(pais, acq_date) %>%
+summarise(
+n_incendios = n(),
+frp_media = mean(frp),
+brillo_med = mean(bright_ti4),
+prop_noche = mean(daynight == "N"),
+.groups = "drop")
+```
+
+6.Modelo primero identificamos la variable de referencia
+
+```{r}
+levels(factor(conteo$pais))
+```
+
+7.  cambiamos de numerico a fecha
+
+```{r}
+conteo=conteo %>%
+  mutate(dia = as.numeric(acq_date - min(acq_date)) + 1)
+```
+
+8 corremos el modelo
+
+```{r}
+modelo <- glm(n_incendios ~ pais + acq_date + frp_media + prop_noche,
+
+family = poisson(link = "log"),
+data = conteo)
+```

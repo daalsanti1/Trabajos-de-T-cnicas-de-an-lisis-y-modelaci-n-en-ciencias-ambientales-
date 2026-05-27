@@ -1,0 +1,85 @@
+---
+title: "EJERCICIO 1 POISSON"
+author: "Dalia Santiago"
+format: pdf
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+```
+
+Calcular la probabilidad de ver 4 jaguares
+
+```{r}
+dpois(4,2)
+```
+
+Probabilidad de ver MÁS DE 3 jaguares P(X \> 3)
+
+```{r}
+ppois( 3, 2, lower.tail = FALSE)
+```
+
+Generar serie de tiempo aleatoria
+
+```{r}
+avistamientos_mes=rpois(n = 12, lambda = 2)
+plot(avistamientos_mes, type = "b", main = "Avistamientos Mensuales Estimados")
+```
+
+Leer el archivo
+
+```{r}
+files=read_csv("SUOMI_VIIRS_C2_Central_America_7d.csv")
+```
+
+Filtrar solo detecciones confiables
+
+```{r}
+fires=files %>%
+  filter(confidence %in% c("nominal", "high"))
+```
+
+Ver la estructura de lo datos
+
+```{r}
+str(fires$acq_date)
+```
+
+Contar los incendios por dia
+
+```{r}
+conteo_diario=fires %>%
+filter(confidence %in% c("nominal", "high")) %>%
+mutate(acq_date = as.Date(acq_date),
+dia = as.numeric(acq_date - min(acq_date)) + 1) %>%
+group_by(dia, daynight) %>%
+summarise(
+n_incendios = n(),
+frp_media = mean(frp),
+.groups = "drop"
+)
+```
+
+Modelo
+
+```{r}
+modelo=glm(n_incendios ~ daynight + frp_media,
+family = poisson(link = "log"),
+data = conteo_diario)
+```
+
+```{r}
+summary(modelo)
+```
+
+NOTA: valor z mas lejos de 0 mas evidencia de un efecto real para poder interpretar los coeficientes debemos pasarlos de logaritmicos a exponencial
+
+Como tenemos un modelo de Poisson debemos interpretar los ceficientes
+
+```{r}
+exp(coef(modelo))
+```
+
+nota: la probabilidad es 1- lo obtenido 1-0.97= 0.03 la probabilidad es de 3% dia y noche: la probabilidad de que ocurra un incendio en la noche es de 63%
