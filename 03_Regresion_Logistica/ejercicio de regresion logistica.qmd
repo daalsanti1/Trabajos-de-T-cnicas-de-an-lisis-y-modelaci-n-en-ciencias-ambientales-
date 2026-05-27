@@ -1,0 +1,65 @@
+---
+title: "MODELO DE REGRESION LOGISTICA"
+author: "Dalia Santiago"
+format: html
+editor: visual
+---
+
+1.  Cargar las librerias y paquetes necesarios. Vamos a trabajar con una libreria que ya esta por default en R
+
+```{r}
+#install.packages("vegan")
+library(vegan)
+```
+
+Vamos a usar dos datasets que estan precargados en ese paquete
+
+```{r}
+data(varespec)
+data(varechem)
+```
+
+```{r}
+#poniendo nombre al dataframe, creo otro objeto con los datos de varechem
+df=varechem
+```
+
+Convertir la variable de interes en binaria
+
+```{r}
+#df$presencia significa que $ es para seleccionar una variable, creando una nueva columna que se llame presencia, ifelse significa un condicional, de esta dataset si esta variable($) es mayor a cero (condicion: > o) 1 its true, o if false
+df$presencia=ifelse(varespec$Cladfimb > 0, 1, 0)
+```
+
+hacemos el modelo logistico
+
+```{r}
+#glm=modelo general lineal, base de datos de entre 10 y 15 datos solo seleciona una variable
+modelo1=glm(presencia ~ pH, data = df, family = binomial)
+```
+
+resultados
+
+```{r}
+#INTERPRETACION: pvalue observar primero, es significativo o no? en este caso si. El valor de p sea 0.05 
+summary(modelo1)
+```
+
+```{r}
+exp(coef(modelo1))
+#el resultado significa: 1-8.416121e-04=0.9991584
+#mientras mas ph mayor presencia porque es positivo
+```
+
+```{r}
+#base de datos d epresencia, ahora queremos ver si en el modelo pasado que tan bueno es, le decimos a r que compare esas predicciones
+predichos <- ifelse(fitted(modelo1) > 0.5, 1, 0)
+table(Real = df$presencia, Predicho = predichos)
+```
+
+rcuadrada mas cercano a 1 modelo mas real, .59 para abajo no, necesitamos mas variables
+
+```{r}
+#pseudorcuadrada .2 y .4 quiere decir que es un modelo que refleja la realidad
+1 - (modelo1$deviance / modelo1$null.deviance)
+```
