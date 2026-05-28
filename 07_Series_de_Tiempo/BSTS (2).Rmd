@@ -1,0 +1,162 @@
+---
+title: "BSTS"
+author: "Dalia Santiago"
+date: "2026-05-03"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# --------------------------------------------------------------------
+# Análisis de Impacto Causal sobre Oxígeno Disuelto en la Bahía (Bay)
+# --------------------------------------------------------------------
+
+
+```{r}
+library(CausalImpact)
+library(zoo)
+library(dplyr)
+library(tidyverse)
+```
+
+
+
+Cargar datos obtenidos de https://www.kaggle.com/datasets/sahirmaharajj/water-quality-data?resource=download
+
+```{r}
+datos <- read.csv("BKB_WaterQualityData_2020084.csv", stringsAsFactors = FALSE)
+datos$Read_Date <- as.Date(datos$Read_Date, format = "%m/%d/%Y")
+
+```
+
+
+Filtrar sitio "Bay" y columnas relevantes
+```{r}
+
+bay <- datos %>% 
+  filter(Site_Id == "Bay") %>% 
+  select(Read_Date, 
+         oxigeno = "Dissolved.Oxygen..mg.L.", 
+         temp_agua = "Water.Temp...C.", 
+         pH = "pH..standard.units.", 
+         salinidad = "Salinity..ppt.",
+         secchi = "Secchi.Depth..m.")
+```
+
+
+Convertir a numérico y ordenar
+```{r}
+bay <- bay %>% 
+  mutate(across(-Read_Date, as.numeric)) %>% 
+  arrange(Read_Date)
+```
+
+
+
+Eliminar filas sin datos en las variables clave
+```{r}
+bay <- bay %>% drop_na(oxigeno, temp_agua, pH, salinidad, secchi)
+```
+
+
+
+*Definir periodos pre y post intervención*
+
+Se seleccionó el 1 de enero de 2010 como fecha de intervención para el análisis de CausalImpact porque representa el inicio del año en que se desarrolló y comenzó a implementar el histórico 'Chesapeake Bay TMDL' (Total Maximum Daily Load), el mayor plan de control de la contaminación establecido por la EPA. Aunque el TMDL fue oficialmente establecido el 29 de diciembre de 2010, los trabajos preparatorios, la presentación de borradores de planes de implementación por parte del estado de Virginia y los primeros cambios normativos se sucedieron a lo largo de 2010. Este conjunto de medidas, que incluía nuevas regulaciones para aguas enriquecidas con nutrientes (efectivas también en diciembre de 2010) y una financiación estatal significativa para la reducción de la contaminación, representan una intervención clara y documentada destinada a mejorar parámetros de calidad del agua como el oxígeno disuelto, la reducción de nutrientes o la transparencia del agua
+```{r}
+fecha_intervencion <- as.Date("2010-01-01")
+pre_period  <- c(min(bay$Read_Date), fecha_intervencion - 1)
+post_period <- c(fecha_intervencion, max(bay$Read_Date))
+```
+
+
+
+Crear zoo series
+```{r}
+y <- zoo(bay$oxigeno, bay$Read_Date)
+predictores <- bay[, c("temp_agua", "pH", "salinidad", "secchi")]
+X <- zoo(predictores, bay$Read_Date)
+datos_zoo <- cbind(y, X)
+```
+
+
+
+Ejecutar el modelo
+```{r}
+impacto <- CausalImpact(datos_zoo, 
+                        pre.period = pre_period, 
+                        post.period = post_period)
+```
+
+
+
+Resultados
+```{r}
+summary(impacto)
+summary(impacto,"report")
+plot(impacto)
+```
+
+El modelo devuelve un efecto promedio de –0.15 mg/L en el oxígeno disuelto, con un intervalo de confianza del 95 % de [–2.6, 2.0] y una probabilidad de efecto causal del 50 %.
+
+    1. ¿Qué significa exactamente que la “probabilidad de un efecto causal” sea del 50 %?
+    En términos prácticos, el resultado está dividido: existe la misma probabilidad de que el cambio observado se deba a la intervención que de que sea simplemente variabilidad natural de los datos.
+
+
+
+   2.  ¿Cómo interpretarías estos resultados ante un gestor ambiental que esperaba una mejora clara?
+   Ante un gestor ambiental, estos resultados se interpretarían diciendo que no se observó una mejora estadísticamente clara en el oxígeno disuelto después de la intervención.
+
+Sin embargo, esto no necesariamente significa que el programa haya fallado. En ecosistemas acuáticos complejos, las respuestas ambientales pueden tardar años en manifestarse debido a factores como:
+
+acumulación histórica de nutrientes en sedimentos,
+cambios climáticos,
+temperatura del agua,
+variaciones estacionales,
+eventos extremos como lluvias o sequías.
+
+También es posible que el oxígeno disuelto no sea el indicador más sensible para detectar efectos tempranos del TMDL. Por lo tanto, el resultado sugiere que todavía no existe evidencia sólida de mejora, más que una prueba definitiva de fracaso.
+
+  3.  ¿Se puede afirmar que la intervención no tuvo ningún efecto? Justifica tu respuesta.
+  No, no se puede afirmar que la intervención no tuvo ningún efecto.
+
+Lo correcto es decir que el análisis no encontró evidencia estadísticamente suficiente para demostrar un efecto claro.
+
+La diferencia es importante porque:
+
+“No hubo efecto” implica certeza absoluta.
+No se detectó efecto” significa que los datos y el modelo no permiten confirmarlo.En este análisis se utilizó oxígeno disuelto como variable respuesta, pero el TMDL de la Bahía de Chesapeake se diseñó principalmente para reducir nutrientes y sedimentos.
+
+   4. ¿Por qué el oxígeno disuelto podría no ser la variable más adecuada para detectar de forma temprana el impacto de una reducción de nutrientes?
+El oxígeno disuelto podría no ser la mejor variable para detectar tempranamente el impacto de una reducción de nutrientes porque responde de manera indirecta y lenta a los cambios en contaminación.
+
+El exceso de nutrientes primero provoca aumento de algas y materia orgánica; después, cuando esa materia se descompone, ocurre el consumo de oxígeno. Este proceso puede tardar meses o años en reflejarse claramente en el ecosistema.
+
+Además, el oxígeno disuelto está influenciado por muchos otros factores:
+
+temperatura del agua,
+salinidad,
+corrientes,
+mezcla del agua,
+clima,
+actividad biológica diaria.
+
+Por eso, aunque los nutrientes disminuyan, el oxígeno disuelto puede no mostrar mejoras inmediatas.
+
+   5. Propón al menos dos variables alternativas que podrían reflejar mejor la respuesta del ecosistema a corto/medio plazo y explica el mecanismo que las une con la intervención.
+
+Concentración de nitrógeno y fósforo
+
+Estas variables están directamente relacionadas con la intervención del TMDL, cuyo objetivo principal era reducir nutrientes contaminantes.
+
+Mecanismo:
+Si la intervención funciona, debería observarse una disminución gradual en las concentraciones de nitrógeno y fósforo debido al menor aporte de fertilizantes, aguas residuales y escorrentía agrícola.
+
+Clorofila
+
+La clorofila es un indicador de biomasa de algas.
+
+Mecanismo:
+Menos nutrientes disponibles implican menor crecimiento excesivo de algas. Por ello, una reducción en clorofila-a podría ser una señal más rápida y sensible de recuperación ecológica que el oxígeno disuelto.
